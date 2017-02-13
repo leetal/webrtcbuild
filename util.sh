@@ -98,16 +98,12 @@ function check::webrtc::deps() {
   local outdir="$2"
   local target_os="$3"
 
-  case $platform in
-  linux)
+  if [ $target_os = 'android' ]; then
+    sudo bash $outdir/src/build/install-build-deps-android.sh
+  elif [ $platform = 'linux' ]; then
     # Automatically accepts ttf-mscorefonts EULA
     echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
     sudo $outdir/src/build/install-build-deps.sh --no-syms --no-arm --no-chromeos-fonts --no-nacl --no-prompt
-    ;;
-  esac
-
-  if [ $target_os = 'android' ]; then
-    sudo bash $outdir/src/build/install-build-deps-android.sh
   fi
 }
 
@@ -177,6 +173,7 @@ function patch() {
     if [ $enable_rtti = 1 ]; then
       echo "Enabling RTTI"
       sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' chromium/src/build/config/BUILDCONFIG.gn
+      sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' third_party/icu/BUILD.gn
     fi
   popd >/dev/null
 }
@@ -256,7 +253,7 @@ function combine() {
     # Method 1: Collect all .o files from .ninja_deps and some missing intrinsics
     local objlist=$(strings .ninja_deps | grep -o '.*\.o') #.obj
     local extras=$(find ./obj/third_party/libvpx/libvpx_* ./obj/third_party/libjpeg_turbo/simd_asm -name *.o) #.obj
-    
+
     echo "$objlist" | tr ' ' '\n' | grep -v -E $blacklist > $libname.list
     echo "$extras" | tr ' ' '\n' >> $libname.list
 
