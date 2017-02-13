@@ -105,9 +105,6 @@ patch $PLATFORM $OUTDIR $ENABLE_RTTI
 echo Compiling WebRTC
 compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST"
 
-echo Combining WebRTC library
-combine $PLATFORM "$OUTDIR/src/out/Debug" "$BLACKLIST" libwebrtc_full
-
 echo Packaging WebRTC
 # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
 LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS-$TARGET_CPU

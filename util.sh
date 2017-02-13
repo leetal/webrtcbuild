@@ -196,10 +196,12 @@ function patch() {
 function compile-win() {
   local outputdir="$1"
   local gn_args="$2"
+  local arch="$3"
   # local blacklist="$3|unittest|examples|main.o"
 
-  gn gen $outputdir --args="$gn_args"
-  pushd $outputdir >/dev/null
+  echo "Generating project files with: $gn_args"
+  gn gen $outputdir/$arch --args="$gn_args"
+  pushd $outputdir/$arch >/dev/null
     ninja -C .
   popd >/dev/null
 }
@@ -319,15 +321,17 @@ function compile() {
   case $platform in
   win)
     # 32-bit build
-    compile-ninja "out/Debug" "$common_args $target_args" "$blacklist"
-    compile-ninja "out/Release" "$common_args $target_args is_debug=false" "$blacklist"
-    combine $platform "out/Debug" "$blacklist" libwebrtc_full
-    combine $platform "out/Release" "$blacklist" libwebrtc_full true
+    compile-win "out/Debug" "$common_args $target_args"
+    compile-win "out/Release" "$common_args $target_args is_debug=false"
 
     # 64-bit build
     GYP_DEFINES="target_arch=x64 $GYP_DEFINES"
-    compile-ninja "out/Debug_x64" "$common_args $target_args"
-    compile-ninja "out/Release_x64" "$common_args $target_args is_debug=false"
+    compile-win "out/Debug_x64" "$common_args $target_args"
+    compile-win "out/Release_x64" "$common_args $target_args is_debug=false"
+
+    echo Combining WebRTC library
+    combine $platform "out/Debug" "$blacklist" libwebrtc_full
+    combine $platform "out/Release" "$blacklist" libwebrtc_full true
     combine $platform "out/Debug_x64" "$blacklist" libwebrtc_full
     combine $platform "out/Release_x64" "$blacklist" libwebrtc_full true
     ;;
@@ -348,10 +352,12 @@ function compile() {
       ;;
     esac
 
-    compile-ninja "out/Debug" "$common_args $target_args"
-    compile-ninja "out/Release" "$common_args $target_args is_debug=false"
-    combine $platform "out/Debug" "$blacklist" libwebrtc_full
-    combine $platform "out/Release" "$blacklist" libwebrtc_full true
+    compile-ninja "out/Debug_${target_cpu}" "$common_args $target_args"
+    compile-ninja "out/Release_${target_cpu}" "$common_args $target_args is_debug=false"
+    
+    echo Combining WebRTC library
+    combine $platform "out/Debug_${target_cpu}" "$blacklist" libwebrtc_full
+    combine $platform "out/Release_${target_cpu}" "$blacklist" libwebrtc_full true
     ;;
   esac
   popd >/dev/null
