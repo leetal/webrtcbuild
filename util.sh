@@ -248,6 +248,12 @@ function combine() {
   #   local blacklist="unittest_main.obj|video_capture_external.obj|\
   # device_info_external.obj"
   pushd $outputdir >/dev/null
+
+    if [[ ("$platform" == "linux" || "$platform" == "mac") &&  -f ${libname}.a ]]; then
+      popd
+      return
+    fi
+
     rm -f $libname.list
 
     # Method 1: Collect all .o files from .ninja_deps and some missing intrinsics
@@ -356,7 +362,7 @@ function compile() {
     compile-ninja "out/Debug_${target_cpu}" "$common_args $target_args"
     compile-ninja "out/Release_${target_cpu}" "$common_args $target_args is_debug=false"
 
-    echo Combining WebRTC library
+    echo Combining WebRTC library `pwd`
     combine $platform "out/Debug_${target_cpu}" "$blacklist" libwebrtc_full
     combine $platform "out/Release_${target_cpu}" "$blacklist" libwebrtc_full true
     ;;
@@ -382,19 +388,19 @@ function package() {
   fi
   pushd $outdir >/dev/null
   # create directory structure
-  mkdir -p $label/include $label/lib
+  mkdir -p include lib >/dev/null
   # find and copy header files
   pushd src >/dev/null
-  find webrtc -name *.h -exec $CP --parents '{}' $outdir/$label/include ';'
+  find webrtc -name *.h -exec $CP --parents '{}' $outdir/include ';'
   pushd third_party/boringssl/src/include >/dev/null
   # Copy boringssl headers
-  find openssl -name *.h -exec $CP --parents '{}' $outdir/$label/include ';'
+  find openssl -name *.h -exec $CP --parents '{}' $outdir/include ';'
   popd >/dev/null
   popd >/dev/null
   # find and copy libraries
   pushd src/out >/dev/null
   find . -maxdepth 3 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar \) \
-    -exec $CP --parents '{}' $outdir/$label/lib ';'
+    -exec $CP --parents '{}' $outdir/lib ';'
   popd >/dev/null
 
   # for linux, add pkgconfig files
@@ -412,9 +418,9 @@ function package() {
 
   # zip up the package
   if [ $platform = 'win' ]; then
-    $DEPOT_TOOLS/win_toolchain/7z/7z.exe a -tzip $label.zip $label
+    $DEPOT_TOOLS/win_toolchain/7z/7z.exe a -tzip $label.zip include lib
   else
-    zip -r $label.zip $label >/dev/null
+    zip -r $label.zip include lib >/dev/null
   fi
   popd >/dev/null
 }
