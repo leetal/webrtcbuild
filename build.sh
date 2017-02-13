@@ -94,7 +94,7 @@ REVISION_NUMBER=$(revision-number $REPO_URL $REVISION) || \
 echo "Associated revision number: $REVISION_NUMBER"
 
 echo "Checking out WebRTC revision (this will take awhile): $REVISION"
-#checkout "$TARGET_OS" $OUTDIR $REVISION
+checkout "$TARGET_OS" $OUTDIR $REVISION
 
 echo Checking WebRTC dependencies
 check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS"
