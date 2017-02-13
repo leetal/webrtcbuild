@@ -107,7 +107,7 @@ function check::webrtc::deps() {
   esac
 
   if [ $target_os = 'android' ]; then
-    sudo $outdir/src/build/install-build-deps-android.sh
+    sudo bash $outdir/src/build/install-build-deps-android.sh
   fi
 }
 
@@ -125,6 +125,11 @@ function checkout() {
   if [[ -n "$prev_target_os" && "$target_os" != "$prev_target_os" ]]; then
     echo The target OS has changed. Refetching sources for the new target OS
     rm -rf src .gclient*
+  fi
+  local prev_revision=$(cat $outdir/.webrtcbuilds_revision 2>/dev/null)
+  if [[ -n "$prev_revision" && "$revision" == "$prev_revision" ]]; then
+    # Abort if revisions match
+    return
   fi
   # Fetch only the first-time, otherwise sync.
   if [ ! -d src ]; then
@@ -147,8 +152,9 @@ function checkout() {
     echo "y" | ./src/setup_links.py --force
     gclient sync
   fi
-  # Cache the target OS
+  # Cache the target OS and revision
   echo $target_os > $outdir/.webrtcbuilds_target_os
+  echo $revision > $outdir/.webrtcbuilds_revision
   popd >/dev/null
 }
 
@@ -354,7 +360,7 @@ function compile() {
 
     compile-ninja "out/Debug_${target_cpu}" "$common_args $target_args"
     compile-ninja "out/Release_${target_cpu}" "$common_args $target_args is_debug=false"
-    
+
     echo Combining WebRTC library
     combine $platform "out/Debug_${target_cpu}" "$blacklist" libwebrtc_full
     combine $platform "out/Release_${target_cpu}" "$blacklist" libwebrtc_full true
