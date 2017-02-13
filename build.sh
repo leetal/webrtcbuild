@@ -19,6 +19,7 @@ WebRTC build script.
 OPTIONS:
    -h             Show this message
    -d             Debug mode. Print all executed commands.
+   -p             Package for release (zip archive).
    -o OUTDIR      Output directory. Default is 'out'
    -b BRANCH      Latest revision on git branch. Overrides -r. Common branch names are 'branch-heads/nn', where 'nn' is the release number.
    -r REVISION    Git SHA revision. Default is latest revision.
@@ -29,7 +30,7 @@ OPTIONS:
 EOF
 }
 
-while getopts :o:b:r:t:c:l:e:d OPTION; do
+while getopts :o:b:r:t:c:l:e:d:p OPTION; do
   case $OPTION in
   o) OUTDIR=$OPTARG ;;
   b) BRANCH=$OPTARG ;;
@@ -39,6 +40,7 @@ while getopts :o:b:r:t:c:l:e:d OPTION; do
   l) BLACKLIST=$OPTARG ;;
   e) ENABLE_RTTI=$OPTARG ;;
   d) DEBUG=$OPTARG ;;
+  p) PACKAGE=1 ;;
   ?) usage; exit 1 ;;
   esac
 done
@@ -48,6 +50,7 @@ BRANCH=${BRANCH:-}
 BLACKLIST=${BLACKLIST:-}
 ENABLE_RTTI=${ENABLE_RTTI:-0}
 DEBUG=${DEBUG:-0}
+PACKAGE=${PACKAGE:-0}
 PROJECT_NAME=webrtcbuild
 REPO_URL="https://chromium.googlesource.com/external/webrtc"
 DEPOT_TOOLS_URL="https://chromium.googlesource.com/chromium/tools/depot_tools.git"
@@ -105,9 +108,11 @@ patch $PLATFORM $OUTDIR $ENABLE_RTTI
 echo Compiling WebRTC
 compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST"
 
-echo Packaging WebRTC
-# label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
-LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS-$TARGET_CPU
-package $PLATFORM $OUTDIR $LABEL $DIR/resource
+if [ $PACKAGE -ne 0 ]; then
+  echo Packaging WebRTC
+  # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
+  LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS-$TARGET_CPU
+  package $PLATFORM $OUTDIR $LABEL $DIR/resource
+fi
 
 echo Build successful

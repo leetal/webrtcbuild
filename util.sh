@@ -202,12 +202,11 @@ function patch() {
 function compile-win() {
   local outputdir="$1"
   local gn_args="$2"
-  local arch="$3"
   # local blacklist="$3|unittest|examples|main.o"
 
   echo "Generating project files with: $gn_args"
-  gn gen $outputdir/$arch --args="$gn_args"
-  pushd $outputdir/$arch >/dev/null
+  gn gen $outputdir --args="$gn_args"
+  pushd $outputdir >/dev/null
     ninja -C .
   popd >/dev/null
 }
@@ -230,19 +229,19 @@ function compile-ninja() {
 # This function combines build artifact objects into one library named by
 # 'outputlib'.
 # $1: The platform
-# $2: The list of object file paths to be combined
-# $3: The blacklist objects to exclude from the library
-# $4: The output library name
+# $2: The output directory
+# $3: The target os
 function combine() {
   local platform="$1"
   local outputdir="$2"
+  local target_os="$3"
 
   # Blacklist objects from:
   # video_capture_external and device_info_external so that the video capture
   # module internal implementations gets linked.
   # unittest_main because it has a main function defined.
   # local blacklist="unittest_main.o|video_capture_external.o|device_info_external.o"
-  local blacklist="unittest|examples|main.o|video_capture_external.o|device_info_external.o|clang_x64/obj/third_party/protobuf"
+  local blacklist="unittest|examples|main.o|video_capture_external.o|device_info_external.o|clang_x64"
   if [ ! -z "$3" ]; then
     blacklist="$blacklist|$3"
   fi
@@ -256,8 +255,8 @@ function combine() {
 
     # Method 1: Collect all .o files from .ninja_deps and some missing intrinsics
     local objlist=$(strings .ninja_deps | grep -o '.*\.o') #.obj
-    #local extras=$(find ./obj/third_party/libvpx/libvpx_* ./obj/third_party/libjpeg_turbo/simd_asm -name *.o) #.obj
-    local extras=$(find ./obj/third_party/libvpx/libvpx_* -name *.o) #.obj
+    local extras=$(find ./obj/third_party/libvpx/libvpx_* ./obj/third_party/libjpeg_turbo/simd_asm -name *.o) #.obj
+    
     echo "$objlist" | tr ' ' '\n' | grep -v -E $blacklist > $libname.list
     echo "$extras" | tr ' ' '\n' >> $libname.list
 
@@ -277,14 +276,13 @@ function combine() {
       ;;
     *)
 
-      # cat $libname.list | grep -v -E $blacklist | xargs ar -crs $libname.a
       if [ $strip_flag == "true" ]; then
         local lib_temp_name=${libname}_unstripped.a
       else
         local lib_temp_name=${libname}.a
       fi
       rm -f ${lib_temp_name}
-      cat $libname.list | grep -v -E $blacklist | xargs ar -rcT ${lib_temp_name}
+      cat $libname.list | grep -v -E $blacklist | xargs ar -crs ${lib_temp_name}
 
       if [ $strip_flag == "true" ]; then
         echo "Stripping $libname in $outputdir"
