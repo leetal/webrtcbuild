@@ -1,5 +1,4 @@
-# webrtcbuilds
-==============
+# Webrtcbuilds
 
 The goal of webrtcbuilds is to provide a single standalone static library and
 package for WebRTC.
