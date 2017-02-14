@@ -178,9 +178,10 @@ function patch() {
 
     # Cherry-pick an important fix in boringssl (might fail on newer revisions than M55)
     pushd chromium/src/third_party/boringssl/src >/dev/null
-    git cherry-pick 3e9e043229c529f09590b7074ba062e0094e9821
+    echo "Cherry-picking BoringSSL fix for SSL_COMP_free_compression_methods()"
+    git cherry-pick --allow-empty --keep-redundant-commits --allow-empty-message 3e9e043229c529f09590b7074ba062e0094e9821
     popd >/dev/null
-    
+
   popd >/dev/null
 }
 
