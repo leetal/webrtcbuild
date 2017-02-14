@@ -175,6 +175,12 @@ function patch() {
       sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' chromium/src/build/config/BUILDCONFIG.gn
       sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' third_party/icu/BUILD.gn
     fi
+
+    # Cherry-pick an important fix in boringssl (might fail on newer revisions than M55)
+    pushd chromium/src/third_party/boringssl/src >/dev/null
+    git cherry-pick 3e9e043229c529f09590b7074ba062e0094e9821
+    popd >/dev/null
+    
   popd >/dev/null
 }
 
