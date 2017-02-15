@@ -27,10 +27,11 @@ OPTIONS:
    -c TARGET CPU  The target cpu for cross-compilation. Default is 'x64'. Other values can be 'x86', 'arm64', 'arm'.
    -l BLACKLIST   Blacklisted *.o objects to exclude from the static library.
    -e ENABLE_RTTI Compile WebRTC with RTTI enabled.
+   -z             Zip the output.
 EOF
 }
 
-while getopts :o:b:r:t:c:l:e:d:p OPTION; do
+while getopts :o:b:r:t:c:l:e:d:p:z OPTION; do
   case $OPTION in
   o) OUTDIR=$OPTARG ;;
   b) BRANCH=$OPTARG ;;
@@ -41,6 +42,7 @@ while getopts :o:b:r:t:c:l:e:d:p OPTION; do
   e) ENABLE_RTTI=$OPTARG ;;
   d) DEBUG=$OPTARG ;;
   p) PACKAGE=1 ;;
+  p) ZIP=true ;;
   ?) usage; exit 1 ;;
   esac
 done
@@ -51,6 +53,7 @@ BLACKLIST=${BLACKLIST:-}
 ENABLE_RTTI=${ENABLE_RTTI:-0}
 DEBUG=${DEBUG:-0}
 PACKAGE=${PACKAGE:-0}
+ZIP=${ZIP:-false}
 PROJECT_NAME=webrtcbuild
 REPO_URL="https://chromium.googlesource.com/external/webrtc"
 DEPOT_TOOLS_URL="https://chromium.googlesource.com/chromium/tools/depot_tools.git"
@@ -112,7 +115,7 @@ if [ $PACKAGE -ne 0 ]; then
   echo Packaging WebRTC
   # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
   LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS-$TARGET_CPU
-  package $PLATFORM $OUTDIR $LABEL $DIR/resource
+  package $PLATFORM $OUTDIR $LABEL $DIR/resource $ZIP
 fi
 
 echo Build successful

@@ -246,20 +246,18 @@ function combine() {
   # unittest_main because it has a main function defined.
   # local blacklist="unittest_main.o|video_capture_external.o|device_info_external.o"
   local blacklist="unittest|examples|main.o|video_capture_external.o|device_info_external.o|clang_x64"
-  if [ ! -z "$3" ]; then
-    blacklist="$blacklist|$3"
+  if [ "$target_os" != "android" ]; then
+    local blacklist="$blacklist|x86_abi_support.o"
   fi
+  # if [ ! -z "$3" ]; then
+  #   local blacklist="$blacklist|$3"
+  # fi
   local libname="$4"
   local strip_flag=${5:-false}
 
   #   local blacklist="unittest_main.obj|video_capture_external.obj|\
   # device_info_external.obj"
   pushd $outputdir >/dev/null
-
-    if [[ ("$platform" == "linux" || "$platform" == "mac") &&  -f ${libname}.a ]]; then
-      popd
-      return
-    fi
 
     rm -f $libname.list
 
@@ -268,7 +266,7 @@ function combine() {
     local extras=$(find ./obj/third_party/libvpx/libvpx_* ./obj/third_party/libjpeg_turbo/simd_asm -name *.o) #.obj
 
     echo "$objlist" | tr ' ' '\n' | grep -v -E $blacklist > $libname.list
-    echo "$extras" | tr ' ' '\n' >> $libname.list
+    echo "$extras" | tr ' ' '\n' | grep -v -E $blacklist >> $libname.list
 
     # Method 2: Collect all .o files from output directory
     # local objlist=$(find . -name '*.o' | grep -v -E $blacklist)
@@ -387,6 +385,7 @@ function package() {
   local outdir="$2"
   local label="$3"
   local resourcedir="$4"
+  local zip_flag=${5:-false}
 
   if [ $platform = 'mac' ]; then
     CP='gcp'
@@ -420,14 +419,16 @@ function package() {
     done
   fi
 
-  # remove first for cleaner builds
-  rm -f $label.zip
+  if [ "$zip_flag" == "true" ]; then
+    # remove old zip first for cleaner builds
+    rm -f $label.zip
 
-  # zip up the package
-  if [ $platform = 'win' ]; then
-    $DEPOT_TOOLS/win_toolchain/7z/7z.exe a -tzip $label.zip include lib
-  else
-    zip -r $label.zip include lib >/dev/null
+    # zip up the package
+    if [ $platform = 'win' ]; then
+      $DEPOT_TOOLS/win_toolchain/7z/7z.exe a -tzip $label.zip include lib
+    else
+      zip -r $label.zip include lib >/dev/null
+    fi
   fi
   popd >/dev/null
 }
