@@ -18,7 +18,7 @@ WebRTC build script.
 
 OPTIONS:
    -h             Show this message
-   -d             Debug mode. Print all executed commands.
+   -d             Build debug version of WebRTC.
    -p             Package for release (zip archive).
    -o OUTDIR      Output directory. Default is 'out'
    -b BRANCH      Latest revision on git branch. Overrides -r. Common branch names are 'branch-heads/nn', where 'nn' is the release number.
@@ -40,7 +40,7 @@ while getopts :o:b:r:t:c:l:e:d:p:z OPTION; do
   c) TARGET_CPU=$OPTARG ;;
   l) BLACKLIST=$OPTARG ;;
   e) ENABLE_RTTI=$OPTARG ;;
-  d) DEBUG=$OPTARG ;;
+  d) BUILD_TYPE=Debug ;;
   p) PACKAGE=1 ;;
   p) ZIP=true ;;
   ?) usage; exit 1 ;;
@@ -51,7 +51,7 @@ OUTDIR=${OUTDIR:-out}
 BRANCH=${BRANCH:-}
 BLACKLIST=${BLACKLIST:-}
 ENABLE_RTTI=${ENABLE_RTTI:-0}
-DEBUG=${DEBUG:-0}
+BUILD_TYPE=${BUILD_TYPE:-Release}
 PACKAGE=${PACKAGE:-0}
 ZIP=${ZIP:-false}
 PROJECT_NAME=webrtcbuild
@@ -60,8 +60,6 @@ DEPOT_TOOLS_URL="https://chromium.googlesource.com/chromium/tools/depot_tools.gi
 DEPOT_TOOLS_DIR=$DIR/depot_tools
 DEPOT_TOOLS_WIN_TOOLCHAIN=0
 PATH=$DEPOT_TOOLS_DIR:$DEPOT_TOOLS_DIR/python276_bin:$PATH
-
-[ "$DEBUG" = 1 ] && set -x
 
 mkdir -p $OUTDIR
 OUTDIR=$(cd $OUTDIR && pwd -P)
@@ -73,10 +71,10 @@ echo "Host OS: $PLATFORM"
 echo "Target OS: $TARGET_OS"
 echo "Target CPU: $TARGET_CPU"
 
-echo Checking webrtcbuilds dependencies
+echo "Checking webrtcbuilds dependencies"
 check::webrtcbuilds::deps $PLATFORM
 
-echo Checking depot-tools
+echo "Checking depot-tools"
 check::depot-tools $PLATFORM $DEPOT_TOOLS_URL $DEPOT_TOOLS_DIR
 
 if [ ! -z $BRANCH ]; then
@@ -102,20 +100,20 @@ echo "Associated revision number: $REVISION_NUMBER"
 echo "Checking out WebRTC revision (this will take awhile): $REVISION"
 checkout "$TARGET_OS" $OUTDIR $REVISION
 
-echo Checking WebRTC dependencies
+echo "Checking WebRTC dependencies"
 check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS"
 
-echo Patching WebRTC source
+echo "Patching WebRTC source"
 patch $PLATFORM $OUTDIR $ENABLE_RTTI
 
-echo Compiling WebRTC
-compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST"
+echo "Compiling WebRTC of type ${BUILD_TYPE}"
+compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST" "$BUILD_TYPE"
 
 if [ $PACKAGE -ne 0 ]; then
-  echo Packaging WebRTC
+  echo "Packaging WebRTC"
   # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
   LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS-$TARGET_CPU
   package $PLATFORM $OUTDIR $LABEL $DIR/resource $ZIP
 fi
 
-echo Build successful
+echo "Build successful"

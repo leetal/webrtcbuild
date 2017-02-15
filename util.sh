@@ -318,6 +318,7 @@ function compile() {
   local target_os="$3"
   local target_cpu="$4"
   local blacklist="$5"
+  local build_type="$6" # Release or Debug
 
   # A note on default common args:
   # `rtc_include_tests=false`: Disable all unit tests
@@ -327,25 +328,28 @@ function compile() {
   # undefined reference to `non-virtual thunk to cricket::VideoCapturer::
   # AddOrUpdateSink(rtc::VideoSinkInterface<cricket::VideoFrame>*, rtc::VideoSinkWants const&)'
   local common_args="rtc_include_tests=false enable_iterator_debugging=false is_component_build=false"
+  if [ "$build_type" == "Release" ]; then
+    local common_args="$common_args is_debug=false"
+  fi
   local target_args="target_os=\"$target_os\" target_cpu=\"$target_cpu\""
 
   pushd $outdir/src >/dev/null
   case $platform in
   win)
     # 32-bit build
-    compile-win "out/Debug" "$common_args $target_args"
-    compile-win "out/Release" "$common_args $target_args is_debug=false"
+    compile-win "out/${build_type}" "$common_args $target_args"
 
     # 64-bit build
     GYP_DEFINES="target_arch=x64 $GYP_DEFINES"
-    compile-win "out/Debug_x64" "$common_args $target_args"
-    compile-win "out/Release_x64" "$common_args $target_args is_debug=false"
+    compile-win "out/${build_type}_x64" "$common_args $target_args"
 
     echo Combining WebRTC library
-    combine $platform "out/Debug" "$blacklist" libwebrtc_full
-    combine $platform "out/Release" "$blacklist" libwebrtc_full true
-    combine $platform "out/Debug_x64" "$blacklist" libwebrtc_full
-    combine $platform "out/Release_x64" "$blacklist" libwebrtc_full true
+    local strip=false
+    if [ "$build_type" == "Release" ]; then
+      local strip=true
+    fi
+    combine $platform "out/${build_type}" "$blacklist" libwebrtc_full "${strip}"
+    combine $platform "out/${build_type}_x64" "$blacklist" libwebrtc_full "${strip}"
     ;;
   *)
     # On Linux, use clang = false and sysroot = false to build using gcc.
@@ -364,12 +368,14 @@ function compile() {
       ;;
     esac
 
-    compile-ninja "out/Debug_${target_cpu}" "$common_args $target_args"
-    compile-ninja "out/Release_${target_cpu}" "$common_args $target_args is_debug=false"
+    compile-ninja "out/${build_type}_${target_cpu}" "$common_args $target_args"
 
     echo Combining WebRTC library `pwd`
-    combine $platform "out/Debug_${target_cpu}" "$blacklist" libwebrtc_full
-    combine $platform "out/Release_${target_cpu}" "$blacklist" libwebrtc_full true
+    local strip=false
+    if [ "$build_type" == "Release" ]; then
+      local strip=true
+    fi
+    combine $platform "out/${build_type}_${target_cpu}" "$blacklist" libwebrtc_full "${strip}"
     ;;
   esac
   popd >/dev/null
