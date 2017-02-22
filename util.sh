@@ -161,6 +161,7 @@ function patch() {
   local platform="$1"
   local outdir="$2"
   local enable_rtti="$3"
+  local target_os="$4"
 
   pushd $outdir/src >/dev/null
     # This removes the examples from being built.
@@ -173,7 +174,10 @@ function patch() {
     if [ $enable_rtti = 1 ]; then
       echo "Enabling RTTI"
       sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' chromium/src/build/config/BUILDCONFIG.gn
-      sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' third_party/icu/BUILD.gn
+      # The icu package is not included in the iOS toolchain
+      if [ "$target_os" != "ios" ]; then
+        sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' third_party/icu/BUILD.gn
+      fi
     fi
 
     # Cherry-pick an important fix in boringssl (might fail on newer revisions than M55)

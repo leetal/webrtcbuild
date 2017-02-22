@@ -31,7 +31,7 @@ OPTIONS:
 EOF
 }
 
-while getopts :o:b:r:t:c:l:e:d:p:z OPTION; do
+while getopts :o:b:r:t:c:l:edpz OPTION; do
   case $OPTION in
   o) OUTDIR=$OPTARG ;;
   b) BRANCH=$OPTARG ;;
@@ -39,10 +39,10 @@ while getopts :o:b:r:t:c:l:e:d:p:z OPTION; do
   t) TARGET_OS=$OPTARG ;;
   c) TARGET_CPU=$OPTARG ;;
   l) BLACKLIST=$OPTARG ;;
-  e) ENABLE_RTTI=$OPTARG ;;
+  e) ENABLE_RTTI=1 ;;
   d) BUILD_TYPE=Debug ;;
   p) PACKAGE=1 ;;
-  p) ZIP=true ;;
+  z) ZIP=true ;;
   ?) usage; exit 1 ;;
   esac
 done
@@ -104,7 +104,7 @@ echo "Checking WebRTC dependencies"
 check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS"
 
 echo "Patching WebRTC source"
-patch $PLATFORM $OUTDIR $ENABLE_RTTI
+patch $PLATFORM $OUTDIR $ENABLE_RTTI "$TARGET_OS"
 
 echo "Compiling WebRTC of type ${BUILD_TYPE}"
 compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST" "$BUILD_TYPE"
