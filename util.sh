@@ -93,6 +93,8 @@ function check::webrtcbuilds::deps() {
 
 # Makes sure all WebRTC build dependencies are present.
 # $1: The platform type.
+# $2: The output directory.
+# $3: The target os.
 function check::webrtc::deps() {
   local platform="$1"
   local outdir="$2"
@@ -157,6 +159,8 @@ function checkout() {
 # Patches a checkout for building static standalone libs
 # $1: The platform type.
 # $2: The output directory.
+# $3: If to enable rtti.
+# $4: The target os.
 function patch() {
   local platform="$1"
   local outdir="$2"
@@ -316,6 +320,10 @@ function combine() {
 # This compiles the library.
 # $1: The platform type.
 # $2: The output directory.
+# $3: The target os.
+# $4: The target cpu.
+# $5: The blacklist.
+# $6: The current build type (Debug|Release).
 function compile() {
   local platform="$1"
   local outdir="$2"
@@ -390,6 +398,7 @@ function compile() {
 # $2: The output directory.
 # $3: Label of the package.
 # $4: The project's resource dirctory.
+# $5: If to ZIP the output.
 function package() {
   local platform="$1"
   local outdir="$2"
