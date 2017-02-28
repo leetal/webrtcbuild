@@ -26,12 +26,13 @@ OPTIONS:
    -t TARGET OS   The target os for cross-compilation. Default is the host OS such as 'linux', 'mac', 'win'. Other values can be 'android', 'ios'.
    -c TARGET CPU  The target cpu for cross-compilation. Default is 'x64'. Other values can be 'x86', 'arm64', 'arm'.
    -l BLACKLIST   Blacklisted *.o objects to exclude from the static library.
-   -e ENABLE_RTTI Compile WebRTC with RTTI enabled.
+   -e             Compile WebRTC with RTTI enabled.
+   -n             Compile WebRTC with Bitcode enabled (iOS/OS X only).
    -z             Zip the output.
 EOF
 }
 
-while getopts :o:b:r:t:c:l:edpz OPTION; do
+while getopts :o:b:r:t:c:l:endpz OPTION; do
   case $OPTION in
   o) OUTDIR=$OPTARG ;;
   b) BRANCH=$OPTARG ;;
@@ -40,6 +41,7 @@ while getopts :o:b:r:t:c:l:edpz OPTION; do
   c) TARGET_CPU=$OPTARG ;;
   l) BLACKLIST=$OPTARG ;;
   e) ENABLE_RTTI=1 ;;
+  n) ENABLE_BITCODE=1 ;;
   d) BUILD_TYPE=Debug ;;
   p) PACKAGE=1 ;;
   z) ZIP=true ;;
@@ -51,6 +53,7 @@ OUTDIR=${OUTDIR:-out}
 BRANCH=${BRANCH:-}
 BLACKLIST=${BLACKLIST:-}
 ENABLE_RTTI=${ENABLE_RTTI:-0}
+ENABLE_BITCODE=${ENABLE_BITCODE:-0}
 BUILD_TYPE=${BUILD_TYPE:-Release}
 PACKAGE=${PACKAGE:-0}
 ZIP=${ZIP:-false}
@@ -107,7 +110,7 @@ echo "Patching WebRTC source"
 patch $PLATFORM $OUTDIR $ENABLE_RTTI "$TARGET_OS"
 
 echo "Compiling WebRTC of type ${BUILD_TYPE}"
-compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST" "$BUILD_TYPE"
+compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST" "$BUILD_TYPE" $ENABLE_BITCODE
 
 if [ $PACKAGE -ne 0 ]; then
   echo "Packaging WebRTC"

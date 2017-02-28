@@ -331,6 +331,7 @@ function compile() {
   local target_cpu="$4"
   local blacklist="$5"
   local build_type="$6" # Release or Debug
+  local enable_bitcode="$7"
 
   # A note on default common args:
   # `rtc_include_tests=false`: Disable all unit tests
@@ -375,8 +376,10 @@ function compile() {
     # Set target specific GN arbuments
     case $target_os in
       ios)
-        #rtc_build_ssl=false rtc_ssl_root=\"${outdir}/openssl/include\"
         common_args="$common_args use_xcode_clang=true ios_enable_code_signing=false ios_deployment_target=\"8.0\""
+        if [ $enable_bitcode = 1 ]; then
+          common_args="$common_args rtc_ios_enable_bitcode=true"
+        fi
       ;;
     esac
 
