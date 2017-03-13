@@ -147,7 +147,7 @@ function checkout() {
   gclient sync --force --revision $revision
   # Make sure that the comand returned correctly! (symlinking might fail)
   if [ ! $? -eq 0 ]; then
-    echo "y" | ./src/setup_links.py --force
+    echo y | ./src/setup_links.py --force
     gclient sync
   fi
   # Cache the target OS and revision
@@ -167,6 +167,15 @@ function patch() {
   local enable_rtti="$3"
   local target_os="$4"
 
+  # Cherry-pick an important fix in boringssl (might fail on newer revisions than M55)
+  git branch -a --silent --quiet --contains 3e9e043229c529f09590b7074ba062e0094e9821 2> /dev/null
+  if [ ! $? -eq 0 ]; then 
+    pushd chromium/src/third_party/boringssl/src >/dev/null
+    echo "Cherry-picking BoringSSL fix for SSL_COMP_free_compression_methods()"
+    git cherry-pick --allow-empty --keep-redundant-commits --allow-empty-message 3e9e043229c529f09590b7074ba062e0094e9821
+    popd >/dev/null
+  fi
+
   pushd $outdir/src >/dev/null
     # This removes the examples from being built.
     sed -i.bak 's|"//webrtc/examples",|#"//webrtc/examples",|' BUILD.gn
@@ -183,12 +192,6 @@ function patch() {
         sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' third_party/icu/BUILD.gn
       fi
     fi
-
-    # Cherry-pick an important fix in boringssl (might fail on newer revisions than M55)
-    pushd chromium/src/third_party/boringssl/src >/dev/null
-    echo "Cherry-picking BoringSSL fix for SSL_COMP_free_compression_methods()"
-    git cherry-pick --allow-empty --keep-redundant-commits --allow-empty-message 3e9e043229c529f09590b7074ba062e0094e9821
-    popd >/dev/null
 
   popd >/dev/null
 }
