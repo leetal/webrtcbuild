@@ -167,16 +167,13 @@ function patch() {
   local enable_rtti="$3"
   local target_os="$4"
 
-  # Cherry-pick an important fix in boringssl (might fail on newer revisions than M55)
-  git branch -a --silent --quiet --contains 3e9e043229c529f09590b7074ba062e0094e9821 2> /dev/null
-  if [ ! $? -eq 0 ]; then 
+  pushd $outdir/src >/dev/null
+    # Cherry-pick an important fix in boringssl (might fail on newer revisions than M55)
     pushd chromium/src/third_party/boringssl/src >/dev/null
     echo "Cherry-picking BoringSSL fix for SSL_COMP_free_compression_methods()"
     git cherry-pick --allow-empty --keep-redundant-commits --allow-empty-message 3e9e043229c529f09590b7074ba062e0094e9821
     popd >/dev/null
-  fi
 
-  pushd $outdir/src >/dev/null
     # This removes the examples from being built.
     sed -i.bak 's|"//webrtc/examples",|#"//webrtc/examples",|' BUILD.gn
     # This patches a GN error with the video_loopback executable depending on a
@@ -379,7 +376,7 @@ function compile() {
     # Set target specific GN arbuments
     case $target_os in
       ios)
-        common_args="$common_args use_xcode_clang=true ios_enable_code_signing=false ios_deployment_target=\"8.0\""
+        common_args="$common_args use_xcode_clang=true enable_ios_bitcode=true ios_enable_code_signing=false ios_deployment_target=\"8.0\""
         if [ $enable_bitcode = 1 ]; then
           common_args="$common_args rtc_ios_enable_bitcode=true"
         fi
