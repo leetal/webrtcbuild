@@ -425,9 +425,10 @@ function package() {
   find openssl -name *.h -exec $CP --parents '{}' $outdir/include ';'
   popd >/dev/null
   popd >/dev/null
+
   # find and copy libraries
   pushd src/out >/dev/null
-  find . -maxdepth 3 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar \) \
+  find . -maxdepth 6 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar \) \
     -exec $CP --parents '{}' $outdir/lib ';'
   popd >/dev/null
 
