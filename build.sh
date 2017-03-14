@@ -72,7 +72,12 @@ OUTDIR=$(cd $OUTDIR && pwd -P)
 
 detect-platform
 TARGET_OS=${TARGET_OS:-$PLATFORM}
-TARGET_CPU=${TARGET_CPU:-x64}
+if [ "$TARGET_OS" == "android" ]; then
+  TARGET_CPU=${TARGET_CPU:-x86_64}
+else
+  TARGET_CPU=${TARGET_CPU:-x64}
+fi
+
 echo "Host OS: $PLATFORM"
 echo "Target OS: $TARGET_OS"
 echo "Target CPU: $TARGET_CPU"
@@ -106,10 +111,10 @@ echo "Associated revision number: $REVISION_NUMBER"
 echo "Checking out WebRTC revision (this will take awhile): $REVISION"
 checkout "$TARGET_OS" $OUTDIR $REVISION
 
-echo "Checking WebRTC dependencies"
-check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU"
-
 if [ $SKIP_BUILD -eq 0 ]; then
+  echo "Checking WebRTC dependencies"
+  check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU"
+
   echo "Patching WebRTC source"
   patch $PLATFORM $OUTDIR $ENABLE_RTTI "$TARGET_OS"
 
