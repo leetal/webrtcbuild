@@ -487,22 +487,22 @@ function stripBuild() {
   local target_cpu="$6"
 
   # Default to use just local toolchain version of strip
-  $strip_bin=strip
+  strip_bin=strip
   case $target_os in
     android)
-      $strip_bin_prepath=$outdir/ndk-toolchains/$target_cpu/bin
+      strip_bin_prepath=$outdir/ndk-toolchains/$target_cpu/bin
       case $target_cpu in
         arm)
-          $strip_bin=$strip_bin_prepath/arm-linux-androideabi-strip
+          strip_bin=$strip_bin_prepath/arm-linux-androideabi-strip
           ;;
         arm64)
-          $strip_bin=$strip_bin_prepath/aarch64-linux-android-strip
+          strip_bin=$strip_bin_prepath/aarch64-linux-android-strip
           ;;
         x86)
-          $strip_bin=$strip_bin_prepath/i686-linux-android-strip
+          strip_bin=$strip_bin_prepath/i686-linux-android-strip
           ;;
         x86_64)
-          $strip_bin=$strip_bin_prepath/x86_64-linux-android-strip
+          strip_bin=$strip_bin_prepath/x86_64-linux-android-strip
           ;;
       esac
     ;;
