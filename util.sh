@@ -109,7 +109,7 @@ function check::webrtc::deps() {
     sudo bash $outdir/src/build/install-build-deps-android.sh
 
     # Make a standalone toolchain as well locally
-    sudo ./$outdir/src/third_party/android_tools/ndk/build/tools/make_standalone_toolchain.py \
+    sudo $outdir/src/third_party/android_tools/ndk/build/tools/make_standalone_toolchain.py \
       --arch $target_cpu \
       --api 18 \
       --stl libc++ \
