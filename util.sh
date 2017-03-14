@@ -58,36 +58,38 @@ function ensure-package() {
 
 # Makes sure all webrtcbuilds dependencies are present.
 # $1: The platform type.
+# $2: The target os.
 function check::webrtcbuilds::deps() {
   local platform="$1"
+  local taget_os="$2"
 
   case $platform in
-  mac)
-    # for GNU version of cp: gcp
-    which gcp || brew install coreutils
-    ;;
-  linux)
-    if ! grep -v \# /etc/apt/sources.list | grep -q multiverse ; then
-      echo "*** Warning: The Multiverse repository is probably not enabled ***"
-      echo "*** which is required for things like msttcorefonts.           ***"
-    fi
-    if ! which sudo > /dev/null ; then
-      apt-get update -qq
-      apt-get install -y sudo
-    fi
-    ensure-package curl
-    ensure-package git
-    ensure-package python
-    ensure-package lbzip2
-    ensure-package lsb-release lsb_release
-    ;;
-  win)
-    VISUAL_STUDIO_TOOLS=${VS140COMNTOOLS:-}
-    if [ -z VISUAL_STUDIO_TOOLS ]; then
-      echo "Building under Microsoft Windows requires Microsoft Visual Studio 2015"
-      exit 1
-    fi
-;;
+    mac)
+      # for GNU version of cp: gcp
+      which gcp || brew install coreutils
+      ;;
+    linux)
+      if ! grep -v \# /etc/apt/sources.list | grep -q multiverse ; then
+        echo "*** Warning: The Multiverse repository is probably not enabled ***"
+        echo "*** which is required for things like msttcorefonts.           ***"
+      fi
+      if ! which sudo > /dev/null ; then
+        apt-get update -qq
+        apt-get install -y sudo
+      fi
+      ensure-package curl
+      ensure-package git
+      ensure-package python
+      ensure-package lbzip2
+      ensure-package lsb-release lsb_release
+      ;;
+    win)
+      VISUAL_STUDIO_TOOLS=${VS140COMNTOOLS:-}
+      if [ -z VISUAL_STUDIO_TOOLS ]; then
+        echo "Building under Microsoft Windows requires Microsoft Visual Studio 2015"
+        exit 1
+      fi
+      ;;
   esac
 }
 
@@ -99,9 +101,20 @@ function check::webrtc::deps() {
   local platform="$1"
   local outdir="$2"
   local target_os="$3"
+  local target_cpu="$4"
 
   if [ $target_os = 'android' ]; then
+    # Automatically accepts ttf-mscorefonts EULA
+    echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
     sudo bash $outdir/src/build/install-build-deps-android.sh
+
+    # Make a standalone toolchain as well locally
+    sudo ./$outdir/src/third_party/android_tools/ndk/build/tools/make_standalone_toolchain.py \
+      --arch $target_cpu \
+      --api 18 \
+      --stl libc++ \
+      --install-dir $outdir/ndk-toolchains/$target_cpu \
+      --force
   elif [ $platform = 'linux' ]; then
     # Automatically accepts ttf-mscorefonts EULA
     echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
@@ -240,28 +253,33 @@ function compile-ninja() {
 
 # This function combines build artifact objects into one library named by
 # 'outputlib'.
-# $1: The platform
-# $2: The output directory
-# $3: The target os
+# $1: The platform.
+# $2: The output directory.
+# $3: The target os.
+# $4: The target cpu.
+# $5: Properitary blacklist objects to exclude.
+# $6: The library name.
+# $7: Strip flag.
 function combine() {
   local platform="$1"
   local outputdir="$2"
   local target_os="$3"
+  local target_cpu="$4"
+  local blacklist_input="$5"
 
   # Blacklist objects from:
   # video_capture_external and device_info_external so that the video capture
   # module internal implementations gets linked.
   # unittest_main because it has a main function defined.
-  # local blacklist="unittest_main.o|video_capture_external.o|device_info_external.o"
   local blacklist="unittest|examples|main.o|video_capture_external.o|device_info_external.o|clang_x64"
   if [ "$target_os" != "android" ]; then
     local blacklist="$blacklist|x86_abi_support.o"
   fi
-  # if [ ! -z "$3" ]; then
-  #   local blacklist="$blacklist|$3"
-  # fi
-  local libname="$4"
-  local strip_flag=${5:-false}
+  if [ ! -z "$blacklist_input" ]; then
+    local blacklist="$blacklist|$blacklist_input"
+  fi
+  local libname="$6"
+  local strip_flag=${7:-false}
 
   #   local blacklist="unittest_main.obj|video_capture_external.obj|\
   # device_info_external.obj"
@@ -305,7 +323,7 @@ function combine() {
         local pre_size=`du -h ${libname}_unstripped.a`
         echo "Size before strip: $pre_size"
         # strip release builds
-        stripBuild ${libname}_unstripped.a $libname.a
+        stripBuild ${outputdir} ${libname}_unstripped.a $libname.a $platform $target_os $target_cpu
         local post_size=`du -h ${libname}.a`
         echo "Size after strip: $post_size"
         rm -f ${libname}_unstripped.a
@@ -361,8 +379,8 @@ function compile() {
     if [ "$build_type" == "Release" ]; then
       local strip=true
     fi
-    combine $platform "out/${build_type}" "$blacklist" libwebrtc_full "${strip}"
-    combine $platform "out/${build_type}_x64" "$blacklist" libwebrtc_full "${strip}"
+    combine $platform "out/${build_type}" "$target_os" "$target_cpu" "$blacklist" libwebrtc_full "${strip}"
+    combine $platform "out/${build_type}_x64" "$target_os" "$target_cpu" "$blacklist" libwebrtc_full "${strip}"
     ;;
   *)
     # On Linux, use clang = false and sysroot = false to build using gcc.
@@ -390,7 +408,7 @@ function compile() {
     if [ "$build_type" == "Release" ]; then
       local strip=true
     fi
-    combine $platform "out/${build_type}_${target_cpu}" "$blacklist" libwebrtc_full "${strip}"
+    combine $platform "out/${build_type}_${target_cpu}" "$target_os" "$target_cpu" "$blacklist" libwebrtc_full "${strip}"
     ;;
   esac
   popd >/dev/null
@@ -401,13 +419,17 @@ function compile() {
 # $2: The output directory.
 # $3: Label of the package.
 # $4: The project's resource dirctory.
-# $5: If to ZIP the output.
+# $5: The target os.
+# $6: The target cpu.
+# $7: If to ZIP the output.
 function package() {
   local platform="$1"
   local outdir="$2"
   local label="$3"
   local resourcedir="$4"
-  local zip_flag=${5:-false}
+  local target_os="$5"
+  local target_cpu="$6"
+  local zip_flag=${7:-false}
 
   if [ $platform = 'mac' ]; then
     CP='gcp'
@@ -457,9 +479,36 @@ function package() {
 }
 
 function stripBuild() {
-  local library_source=$1
-  local output_name=$2
-  strip -S ${library_source} -o ${output_name}
+  local outputdir=$1
+  local library_source=$2
+  local output_name=$3
+  local platform="$4"
+  local target_os="$5"
+  local target_cpu="$6"
+
+  # Default to use just local toolchain version of strip
+  $strip_bin=strip
+  case $target_os in
+    android)
+      $strip_bin_prepath=$outdir/ndk-toolchains/$target_cpu/bin
+      case $target_cpu in
+        arm)
+          $strip_bin=$strip_bin_prepath/arm-linux-androideabi-strip
+          ;;
+        arm64)
+          $strip_bin=$strip_bin_prepath/aarch64-linux-android-strip
+          ;;
+        x86)
+          $strip_bin=$strip_bin_prepath/i686-linux-android-strip
+          ;;
+        x86_64)
+          $strip_bin=$strip_bin_prepath/x86_64-linux-android-strip
+          ;;
+      esac
+    ;;
+  esac
+
+  $strip_bin -S ${library_source} -o ${output_name}
 }
 
 # This returns the latest revision from the git repo.

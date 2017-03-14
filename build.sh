@@ -19,7 +19,7 @@ WebRTC build script.
 OPTIONS:
    -h             Show this message
    -d             Build debug version of WebRTC.
-   -p             Package for release (zip archive).
+   -p             Package for release.
    -o OUTDIR      Output directory. Default is 'out'
    -b BRANCH      Latest revision on git branch. Overrides -r. Common branch names are 'branch-heads/nn', where 'nn' is the release number.
    -r REVISION    Git SHA revision. Default is latest revision.
@@ -28,11 +28,12 @@ OPTIONS:
    -l BLACKLIST   Blacklisted *.o objects to exclude from the static library.
    -e             Compile WebRTC with RTTI enabled.
    -n             Compile WebRTC with Bitcode enabled (iOS/OS X only).
+   -s             Skip building.
    -z             Zip the output.
 EOF
 }
 
-while getopts :o:b:r:t:c:l:endpz OPTION; do
+while getopts :o:b:r:t:c:l:endpsz OPTION; do
   case $OPTION in
   o) OUTDIR=$OPTARG ;;
   b) BRANCH=$OPTARG ;;
@@ -44,11 +45,13 @@ while getopts :o:b:r:t:c:l:endpz OPTION; do
   n) ENABLE_BITCODE=1 ;;
   d) BUILD_TYPE=Debug ;;
   p) PACKAGE=1 ;;
+  s) SKIP_BUILD=1 ;;
   z) ZIP=true ;;
   ?) usage; exit 1 ;;
   esac
 done
 
+SKIP_BUILD=${SKIP_BUILD:-0}
 OUTDIR=${OUTDIR:-out}
 BRANCH=${BRANCH:-}
 BLACKLIST=${BLACKLIST:-}
@@ -75,7 +78,7 @@ echo "Target OS: $TARGET_OS"
 echo "Target CPU: $TARGET_CPU"
 
 echo "Checking webrtcbuilds dependencies"
-check::webrtcbuilds::deps $PLATFORM
+check::webrtcbuilds::deps $PLATFORM $TARGET_OS
 
 echo "Checking depot-tools"
 check::depot-tools $PLATFORM $DEPOT_TOOLS_URL $DEPOT_TOOLS_DIR
@@ -104,19 +107,23 @@ echo "Checking out WebRTC revision (this will take awhile): $REVISION"
 checkout "$TARGET_OS" $OUTDIR $REVISION
 
 echo "Checking WebRTC dependencies"
-check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS"
+check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU"
 
-echo "Patching WebRTC source"
-patch $PLATFORM $OUTDIR $ENABLE_RTTI "$TARGET_OS"
+if [ $SKIP_BUILD -eq 0 ]; then
+  echo "Patching WebRTC source"
+  patch $PLATFORM $OUTDIR $ENABLE_RTTI "$TARGET_OS"
 
-echo "Compiling WebRTC of type ${BUILD_TYPE}"
-compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST" "$BUILD_TYPE" $ENABLE_BITCODE
+  echo "Compiling WebRTC of type ${BUILD_TYPE}"
+  compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST" "$BUILD_TYPE" $ENABLE_BITCODE
+else
+  echo "Skipping build..."
+fi
 
 if [ $PACKAGE -ne 0 ]; then
   echo "Packaging WebRTC"
   # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
   LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS-$TARGET_CPU
-  package $PLATFORM $OUTDIR $LABEL $DIR/resource $ZIP
+  package $PLATFORM $OUTDIR $LABEL $DIR/resource $TARGET_OS $TARGET_CPU $ZIP
 fi
 
 echo "Build successful"
