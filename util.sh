@@ -442,18 +442,18 @@ function package() {
   fi
   pushd $outdir >/dev/null
   # create directory structure
-  mkdir -p include lib >/dev/null
+  mkdir -p $branch/include $branch/lib >/dev/null
 
   # find and copy header files
   pushd src >/dev/null
-  find webrtc -name *.h -exec $CP --parents '{}' $outdir/$branch/include ';'
+  find webrtc -name '*.h' -exec $CP --parents '{}' $outdir/$branch/include ';'
   # Copy boringssl headers
   pushd third_party/boringssl/src/include >/dev/null
-  find openssl -name *.h -exec $CP --parents '{}' $outdir/$branch/include ';'
+  find openssl -name '*.h' -exec $CP --parents '{}' $outdir/$branch/include ';'
   popd >/dev/null
   # Copy libyuv headers
-  pushd third_party/libyuv/include >/dev/null
-  find . -name *.h -exec $CP --parents '{}' $outdir/$branch/include ';'
+  pushd third_party/libyuv/ >/dev/null
+  find . -name '*.h' -exec $CP --parents '{}' $outdir/$branch/include ';'
   popd >/dev/null
 
   popd >/dev/null
@@ -468,9 +468,9 @@ function package() {
   if [ $platform = 'linux' ]; then
     configs="Debug Release"
     for cfg in $configs; do
-      mkdir -p $label/lib/$cfg/pkgconfig
+      mkdir -p $branch/lib/$cfg/pkgconfig
       CONFIG=$cfg envsubst '$CONFIG' < $resourcedir/pkgconfig/libwebrtc_full.pc.in > \
-        $label/lib/$cfg/pkgconfig/libwebrtc_full.pc
+        $branch/lib/$cfg/pkgconfig/libwebrtc_full.pc
     done
   fi
 
