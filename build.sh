@@ -53,7 +53,10 @@ done
 
 SKIP_BUILD=${SKIP_BUILD:-0}
 OUTDIR=${OUTDIR:-out}
-BRANCH=${BRANCH:-}
+BRANCH=${BRANCH:-artifacts}
+if [ "$BRANCH" != "artifacts" ]; then
+  BRANCH_NUM=${BRANCH##*/}
+fi
 BLACKLIST=${BLACKLIST:-}
 ENABLE_RTTI=${ENABLE_RTTI:-0}
 ENABLE_BITCODE=${ENABLE_BITCODE:-0}
@@ -99,13 +102,20 @@ if [ ! -z $BRANCH ]; then
   REVISION=$(git ls-remote $REPO_URL --heads $BRANCH | $HEAD --lines 1 | $CUT --fields 1) || \
     { echo "Cound not get branch revision" && exit 1; }
    echo "Building branch: $BRANCH"
+   echo "Associated branch number: $BRANCH_NUM"
 else
   REVISION=${REVISION:-$(latest-rev $REPO_URL)} || \
     { echo "Could not get latest revision" && exit 1; }
 fi
-echo "Building revision: $REVISION"
+
+if [ -z $REVISION ]; then
+  echo "Could not get a valid revision based on input" && exit 1
+fi
+
 REVISION_NUMBER=$(revision-number $REPO_URL $REVISION) || \
   { echo "Could not get revision number" && exit 1; }
+
+echo "Building revision: $REVISION"
 echo "Associated revision number: $REVISION_NUMBER"
 
 echo "Checking out WebRTC revision (this will take awhile): $REVISION"
@@ -119,16 +129,23 @@ if [ $SKIP_BUILD -eq 0 ]; then
   patch $PLATFORM $OUTDIR $ENABLE_RTTI "$TARGET_OS"
 
   echo "Compiling WebRTC of type ${BUILD_TYPE}"
-  compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST" "$BUILD_TYPE" $ENABLE_BITCODE
+  compile $PLATFORM $OUTDIR "$BRANCH" "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST" "$BUILD_TYPE" $ENABLE_BITCODE
 else
   echo "Skipping build..."
 fi
 
 if [ $PACKAGE -ne 0 ]; then
   echo "Packaging WebRTC"
-  # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
-  LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS-$TARGET_CPU
-  package $PLATFORM $OUTDIR $LABEL $DIR/resource $TARGET_OS $TARGET_CPU $ZIP
+
+  if [ ! -z $BRANCH_NUM ]; then
+    # label is <projectname>-<branch-number>-<target-os>
+    LABEL=$PROJECT_NAME-$BRANCH_NUM-$TARGET_OS
+    package $PLATFORM $OUTDIR $LABEL "$BRANCH_NUM" $DIR/resource $TARGET_OS $TARGET_CPU $ZIP
+  else
+    # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>
+    LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS
+    package $PLATFORM $OUTDIR $LABEL "$BRANCH" $DIR/resource $TARGET_OS $TARGET_CPU $ZIP
+  fi
 fi
 
 echo "Build successful"

@@ -338,18 +338,20 @@ function combine() {
 # This compiles the library.
 # $1: The platform type.
 # $2: The output directory.
-# $3: The target os.
-# $4: The target cpu.
-# $5: The blacklist.
-# $6: The current build type (Debug|Release).
+# $3: The specified branch (or 'artifacts' if not specified).
+# $4: The target os.
+# $5: The target cpu.
+# $6: The blacklist.
+# $7: The current build type (Debug|Release).
 function compile() {
   local platform="$1"
   local outdir="$2"
-  local target_os="$3"
-  local target_cpu="$4"
-  local blacklist="$5"
-  local build_type="$6" # Release or Debug
-  local enable_bitcode="$7"
+  local branch="$3"
+  local target_os="$4"
+  local target_cpu="$5"
+  local blacklist="$6"
+  local build_type="$7" # Release or Debug
+  local enable_bitcode="$8"
 
   # A note on default common args:
   # `rtc_include_tests=false`: Disable all unit tests
@@ -394,9 +396,9 @@ function compile() {
     # Set target specific GN arbuments
     case $target_os in
       ios)
-        common_args="$common_args use_xcode_clang=true enable_ios_bitcode=true ios_enable_code_signing=false ios_deployment_target=\"8.0\""
+        common_args="$common_args use_xcode_clang=true ios_enable_code_signing=false ios_deployment_target=\"8.0\""
         if [ $enable_bitcode = 1 ]; then
-          common_args="$common_args rtc_ios_enable_bitcode=true"
+          common_args="$common_args enable_ios_bitcode=true"
         fi
       ;;
     esac
@@ -418,18 +420,20 @@ function compile() {
 # $1: The platform type.
 # $2: The output directory.
 # $3: Label of the package.
-# $4: The project's resource dirctory.
-# $5: The target os.
-# $6: The target cpu.
-# $7: If to ZIP the output.
+# $4: The specified branch/branch-number (or 'artifacts' if 'BRANCH' not specified).
+# $5: The project's resource dirctory.
+# $6: The target os.
+# $7: The target cpu.
+# $8: If to ZIP the output.
 function package() {
   local platform="$1"
   local outdir="$2"
   local label="$3"
-  local resourcedir="$4"
-  local target_os="$5"
-  local target_cpu="$6"
-  local zip_flag=${7:-false}
+  local branch="$4"
+  local resourcedir="$5"
+  local target_os="$6"
+  local target_cpu="$7"
+  local zip_flag=${8:-false}
 
   if [ $platform = 'mac' ]; then
     CP='gcp'
@@ -439,19 +443,25 @@ function package() {
   pushd $outdir >/dev/null
   # create directory structure
   mkdir -p include lib >/dev/null
+
   # find and copy header files
   pushd src >/dev/null
-  find webrtc -name *.h -exec $CP --parents '{}' $outdir/include ';'
-  pushd third_party/boringssl/src/include >/dev/null
+  find webrtc -name *.h -exec $CP --parents '{}' $outdir/$branch/include ';'
   # Copy boringssl headers
-  find openssl -name *.h -exec $CP --parents '{}' $outdir/include ';'
+  pushd third_party/boringssl/src/include >/dev/null
+  find openssl -name *.h -exec $CP --parents '{}' $outdir/$branch/include ';'
   popd >/dev/null
+  # Copy libyuv headers
+  pushd third_party/libyuv/include >/dev/null
+  find . -name *.h -exec $CP --parents '{}' $outdir/$branch/include ';'
+  popd >/dev/null
+
   popd >/dev/null
 
   # find and copy libraries
   pushd src/out >/dev/null
   find . -maxdepth 6 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar \) \
-    -exec $CP --parents '{}' $outdir/lib ';'
+    -exec $CP --parents '{}' $outdir/$branch/lib ';'
   popd >/dev/null
 
   # for linux, add pkgconfig files
@@ -464,17 +474,22 @@ function package() {
     done
   fi
 
+  # write the current revision and branch to an info-file
+  touch $label.txt
+  echo "Branch: ${branch}" > $label.txt
+
   if [ "$zip_flag" == "true" ]; then
     # remove old zip first for cleaner builds
     rm -f $label.zip
 
     # zip up the package
     if [ $platform = 'win' ]; then
-      $DEPOT_TOOLS/win_toolchain/7z/7z.exe a -tzip $label.zip include lib
+      $DEPOT_TOOLS/win_toolchain/7z/7z.exe a -tzip $label.zip $branch/include $branch/lib
     else
-      zip -r $label.zip include lib >/dev/null
+      zip -r $label.zip $branch/include $branch/lib >/dev/null
     fi
   fi
+
   popd >/dev/null
 }
 
