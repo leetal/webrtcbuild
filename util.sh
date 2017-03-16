@@ -441,6 +441,10 @@ function package() {
     CP='cp'
   fi
   pushd $outdir >/dev/null
+
+  # remove any old artifacts in same folder
+  rm -rf $branch
+
   # create directory structure
   mkdir -p $branch/include $branch/lib >/dev/null
 
