@@ -18,18 +18,26 @@ installed)
 
 Or with options.
 
-```
+```bash
 Usage:
    ./build.sh [OPTIONS]
 
+WebRTC build script.
+
 OPTIONS:
    -h             Show this message
-   -d             Debug mode. Print all executed commands.
+   -d             Build debug version of WebRTC.
+   -p             Package for release.
    -o OUTDIR      Output directory. Default is 'out'
-   -b BRANCH      Latest revision on git branch. Overrides -r. Common branch names are 'branch-heads/nn', where 'n' is the release number.
+   -b BRANCH      Latest revision on git branch. Overrides -r. Common branch names are 'branch-heads/nn', where 'nn' is the release number.
    -r REVISION    Git SHA revision. Default is latest revision.
    -t TARGET OS   The target os for cross-compilation. Default is the host OS such as 'linux', 'mac', 'win'. Other values can be 'android', 'ios'.
    -c TARGET CPU  The target cpu for cross-compilation. Default is 'x64'. Other values can be 'x86', 'arm64', 'arm'.
+   -l BLACKLIST   Blacklisted *.o objects to exclude from the static library.
+   -e             Compile WebRTC with RTTI enabled.
+   -n             Compile WebRTC with Bitcode enabled (iOS/OS X only).
+   -s             Skip building.
+   -z             Zip the output.
 ```
 
 ## Where is the package
