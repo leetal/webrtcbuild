@@ -24,7 +24,7 @@ OPTIONS:
    -b BRANCH      Latest revision on git branch. Overrides -r. Common branch names are 'branch-heads/nn', where 'nn' is the release number.
    -r REVISION    Git SHA revision. Default is latest revision.
    -t TARGET OS   The target os for cross-compilation. Default is the host OS such as 'linux', 'mac', 'win'. Other values can be 'android', 'ios'.
-   -c TARGET CPU  The target cpu for cross-compilation. Default is 'x64'. Other values can be 'x86', 'arm64', 'arm'.
+   -c TARGET CPU  The target cpu for cross-compilation. Default is 'none'. Other values can be 'x64 (x86_64)', 'x86', 'arm64', 'arm'.
    -l BLACKLIST   Blacklisted *.o objects to exclude from the static library.
    -e             Compile WebRTC with RTTI enabled.
    -n             Compile WebRTC with Bitcode enabled (iOS/OS X only).
@@ -75,11 +75,7 @@ OUTDIR=$(cd $OUTDIR && pwd -P)
 
 detect-platform
 TARGET_OS=${TARGET_OS:-$PLATFORM}
-if [ "$TARGET_OS" == "android" ]; then
-  TARGET_CPU=${TARGET_CPU:-x86_64}
-else
-  TARGET_CPU=${TARGET_CPU:-x64}
-fi
+TARGET_CPU=${TARGET_CPU:-none}
 
 echo "Host OS: $PLATFORM"
 echo "Target OS: $TARGET_OS"
@@ -138,13 +134,13 @@ if [ $PACKAGE -ne 0 ]; then
   echo "Packaging WebRTC"
 
   if [ ! -z $BRANCH_NUM ]; then
-    # label is <projectname>-<branch-number>-<target-os>
+    # label is <projectname>-<branch-number>-<target-os>-<build_type>
     LABEL=$PROJECT_NAME-$BRANCH_NUM-$TARGET_OS
-    package $PLATFORM $OUTDIR $LABEL "$BRANCH_NUM" $DIR/resource $TARGET_OS $TARGET_CPU $ZIP
+    package $PLATFORM $OUTDIR $LABEL "$BRANCH_NUM" $DIR/resource $TARGET_OS $TARGET_CPU "$BUILD_TYPE" $ZIP
   else
-    # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>
+    # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<build_type>
     LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS
-    package $PLATFORM $OUTDIR $LABEL "$BRANCH" $DIR/resource $TARGET_OS $TARGET_CPU $ZIP
+    package $PLATFORM $OUTDIR $LABEL "$BRANCH" $DIR/resource $TARGET_OS $TARGET_CPU "$BUILD_TYPE" $ZIP
   fi
 fi
 

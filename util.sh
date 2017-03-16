@@ -137,11 +137,16 @@ function checkout() {
     echo The target OS has changed. Refetching sources for the new target OS
     rm -rf src .gclient*
   fi
+
   local prev_revision=$(cat $outdir/.webrtcbuilds_revision 2>/dev/null)
-  if [[ -n "$prev_revision" && "$revision" == "$prev_revision" ]]; then
+  if [[ -n "$prev_revision" && "$revision" != "$prev_revision" ]]; then
+    # Clear if revisions missmatch
+    rm -rf src .gclient*
+  elif [[ -n "$prev_revision" && "$revision" == "$prev_revision" ]]; then
     # Abort if revisions match
     return
   fi
+
   # Fetch only the first-time, otherwise sync.
   if [ ! -d src ]; then
     case $target_os in
@@ -160,7 +165,7 @@ function checkout() {
   gclient sync --force --revision $revision
   # Make sure that the comand returned correctly! (symlinking might fail)
   if [ ! $? -eq 0 ]; then
-    echo y | ./src/setup_links.py --force
+    echo y | src/setup_links.py --force
     gclient sync
   fi
   # Cache the target OS and revision
@@ -182,21 +187,18 @@ function patch() {
 
   pushd $outdir/src >/dev/null
     # Cherry-pick an important fix in boringssl (might fail on newer revisions than M55)
-    pushd chromium/src/third_party/boringssl/src >/dev/null
-    echo "Cherry-picking BoringSSL fix for SSL_COMP_free_compression_methods()"
-    git cherry-pick --allow-empty --keep-redundant-commits --allow-empty-message 3e9e043229c529f09590b7074ba062e0094e9821
-    popd >/dev/null
+    # pushd chromium/src/third_party/boringssl/src >/dev/null
+    # echo "Cherry-picking BoringSSL fix for SSL_COMP_free_compression_methods()"
+    # git cherry-pick --allow-empty --keep-redundant-commits --allow-empty-message 3e9e043229c529f09590b7074ba062e0094e9821
+    # popd >/dev/null
 
     # This removes the examples from being built.
     sed -i.bak 's|"//webrtc/examples",|#"//webrtc/examples",|' BUILD.gn
-    # This patches a GN error with the video_loopback executable depending on a
-    # test but since we disable building tests GN detects a dependency error.
-    # Replacing the outer conditional with 'rtc_include_tests' works around this.
-    #sed -i.bak 's|if (!build_with_chromium)|if (rtc_include_tests)|' webrtc/BUILD.gn
+
     # Enable RTTI if required by removing the 'no_rtti' compiler flag
     if [ $enable_rtti = 1 ]; then
       echo "Enabling RTTI"
-      sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' chromium/src/build/config/BUILDCONFIG.gn
+      sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' build/config/BUILDCONFIG.gn
       # The icu package is not included in the iOS toolchain
       if [ "$target_os" != "ios" ]; then
         sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' third_party/icu/BUILD.gn
@@ -353,6 +355,11 @@ function compile() {
   local build_type="$7" # Release or Debug
   local enable_bitcode="$8"
 
+  if [ "$target_cpu" == "none" ]; then
+    echo "Target CPU not specified, skipping compile..."
+    return
+  fi
+
   # A note on default common args:
   # `rtc_include_tests=false`: Disable all unit tests
   # `enable_iterator_debugging=false`: Disable libstdc++ debugging facilities
@@ -424,7 +431,8 @@ function compile() {
 # $5: The project's resource dirctory.
 # $6: The target os.
 # $7: The target cpu.
-# $8: If to ZIP the output.
+# $8: The build type.
+# $9: If to ZIP the output.
 function package() {
   local platform="$1"
   local outdir="$2"
@@ -433,7 +441,8 @@ function package() {
   local resourcedir="$5"
   local target_os="$6"
   local target_cpu="$7"
-  local zip_flag=${8:-false}
+  local build_type="$8"
+  local zip_flag=${9:-false}
 
   if [ $platform = 'mac' ]; then
     CP='gcp'
@@ -443,55 +452,73 @@ function package() {
   pushd $outdir >/dev/null
 
   # remove any old artifacts in same folder
-  rm -rf $branch
+  rm -rf $branch/$build_type
 
   # create directory structure
-  mkdir -p $branch/include $branch/lib >/dev/null
+  mkdir -p $branch/$build_type/include $branch/$build_type/lib >/dev/null
 
   # find and copy header files
   pushd src >/dev/null
-  find webrtc -name '*.h' -exec $CP --parents '{}' $outdir/$branch/include ';'
+  find webrtc -name '*.h' -exec $CP --parents '{}' $outdir/$branch/$build_type/include ';'
   # Copy boringssl headers
   pushd third_party/boringssl/src/include >/dev/null
-  find openssl -name '*.h' -exec $CP --parents '{}' $outdir/$branch/include ';'
+  find openssl -name '*.h' -exec $CP --parents '{}' $outdir/$branch/$build_type/include ';'
   popd >/dev/null
   # Copy libyuv headers
   pushd third_party/libyuv/include >/dev/null
-  find . -name '*.h' -exec $CP --parents '{}' $outdir/$branch/include ';'
+  find . -name '*.h' -exec $CP --parents '{}' $outdir/$branch/$build_type/include ';'
   popd >/dev/null
 
   popd >/dev/null
 
   # find and copy libraries
   pushd src/out >/dev/null
-  find . -maxdepth 6 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar \) \
-    -exec $CP --parents '{}' $outdir/$branch/lib ';'
+  if [ "$target_cpu" == "none" ]; then
+    zip_file=$label-$build_type.zip
+    find ${build_type}_* -maxdepth 6 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar \) \
+      -exec $CP --parents '{}' $outdir/$branch/$build_type/lib ';'
+  else
+    zip_file=$label-$build_type-$target_os-$target_cpu.zip
+    find ${build_type}_${target_cpu} -maxdepth 6 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar \) \
+      -exec $CP --parents '{}' $outdir/$branch/$build_type/lib ';'
+  fi
   popd >/dev/null
 
   # for linux, add pkgconfig files
   if [ $platform = 'linux' ]; then
-    configs="Debug Release"
-    for cfg in $configs; do
-      mkdir -p $branch/lib/$cfg/pkgconfig
+    if [ "$target_cpu" == "none" ]; then
+      configs="Debug Release"
+      for cfg in $configs; do
+        mkdir -p $branch/$build_type/lib/$cfg/pkgconfig
+        CONFIG=$cfg envsubst '$CONFIG' < $resourcedir/pkgconfig/libwebrtc_full.pc.in > \
+          $branch/$build_type/lib/$cfg/pkgconfig/libwebrtc_full.pc
+      done
+    else
+      mkdir -p $branch/$build_type/lib/$build_type/pkgconfig
       CONFIG=$cfg envsubst '$CONFIG' < $resourcedir/pkgconfig/libwebrtc_full.pc.in > \
-        $branch/lib/$cfg/pkgconfig/libwebrtc_full.pc
-    done
+          $branch/$build_type/lib/$build_type/pkgconfig/libwebrtc_full.pc
+    fi
   fi
 
   # write the current revision and branch to an info-file
   touch $label.txt
-  echo "Branch: ${branch}" > $label.txt
+  echo "Branch: ${branch}, Build type: ${build_type}" > $label.txt
 
   if [ "$zip_flag" == "true" ]; then
+    echo "Zipping the artifacts..."
     # remove old zip first for cleaner builds
-    rm -f $label.zip
+    rm -f $zip_file >/dev/null
 
+    pushd $branch/$build_type >/dev/null
     # zip up the package
     if [ $platform = 'win' ]; then
-      $DEPOT_TOOLS/win_toolchain/7z/7z.exe a -tzip $label.zip $branch/include $branch/lib
+      $DEPOT_TOOLS/win_toolchain/7z/7z.exe a -tzip $zip_file include lib >/dev/null
     else
-      zip -r $label.zip $branch/include $branch/lib >/dev/null
+      zip -r $zip_file include lib >/dev/null
     fi
+    popd >/dev/null
+    # move the zipped files
+    mv $branch/$build_type/$zip_file $zip_file
   fi
 
   popd >/dev/null
