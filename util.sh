@@ -478,7 +478,7 @@ function package() {
     find ${build_type}_* -maxdepth 6 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar \) \
       -exec $CP --parents '{}' $outdir/$branch/$build_type/lib ';'
   else
-    zip_file=$label-$build_type-$target_os-$target_cpu.zip
+    zip_file=$label-$build_type-$target_cpu.zip
     find ${build_type}_${target_cpu} -maxdepth 6 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar \) \
       -exec $CP --parents '{}' $outdir/$branch/$build_type/lib ';'
   fi
