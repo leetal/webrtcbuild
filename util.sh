@@ -452,7 +452,7 @@ function package() {
   find openssl -name '*.h' -exec $CP --parents '{}' $outdir/$branch/include ';'
   popd >/dev/null
   # Copy libyuv headers
-  pushd third_party/libyuv/ >/dev/null
+  pushd third_party/libyuv/include >/dev/null
   find . -name '*.h' -exec $CP --parents '{}' $outdir/$branch/include ';'
   popd >/dev/null
 
