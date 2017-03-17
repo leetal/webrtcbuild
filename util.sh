@@ -475,12 +475,18 @@ function package() {
   pushd src/out >/dev/null
   if [ "$target_cpu" == "none" ]; then
     zip_file=$label-$build_type.zip
-    find ${build_type}_* -maxdepth 4 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar ! -iname *test* ! -path */gen/* ! -path */obj/* \) \
+    find ${build_type}_* -maxdepth 4 \( -name "*.so" -o -name "*.dll" -o -name "*webrtc_full*" -o -name "*.jar" ! -iname "*test*" ! -path "*/gen/*" ! -path "*/obj/*" \) \
       -exec $CP --parents '{}' $outdir/$branch/$build_type/lib ';'
   else
     zip_file=$label-$build_type-$target_cpu.zip
-    find ${build_type}_${target_cpu} -maxdepth 4 \( -name *.so -o -name *.dll -o -name *webrtc_full* -o -name *.jar ! -iname *test* ! -path */gen/* ! -path */obj/* \) \
+    if [ ! -d ${build_type}_${target_cpu} ]; then
+      echo "Could not find artifacts folder during package step!"
+      exit 1
+    fi
+    pushd ${build_type}_${target_cpu} >/dev/null
+    find . -maxdepth 4 \( -name "*.so "-o -name "*.dll" -o -name "*webrtc_full*" -o -name "*.jar" ! -iname "*test*" ! -path "*/gen/*" ! -path "*/obj/*" \) \
       -exec $CP --parents '{}' $outdir/$branch/$build_type/lib ';'
+    popd >/dev/null
   fi
   popd >/dev/null
 
