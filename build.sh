@@ -132,7 +132,6 @@ fi
 
 if [ $PACKAGE -ne 0 ]; then
   echo "Packaging WebRTC"
-
   if [ ! -z $BRANCH_NUM ]; then
     # label is <projectname>-<branch-number>-<target-os>-<build_type>
     LABEL=$PROJECT_NAME-$BRANCH_NUM-$TARGET_OS
