@@ -30,10 +30,11 @@ OPTIONS:
    -n             Compile WebRTC with Bitcode enabled (iOS/OS X only).
    -s             Skip building.
    -z             Zip the output.
+   -w             Skip WebRTC dependencies check.
 EOF
 }
 
-while getopts :o:b:r:t:c:l:endpsz OPTION; do
+while getopts :o:b:r:t:c:l:endpszw OPTION; do
   case $OPTION in
   o) OUTDIR=$OPTARG ;;
   b) BRANCH=$OPTARG ;;
@@ -47,11 +48,13 @@ while getopts :o:b:r:t:c:l:endpsz OPTION; do
   p) PACKAGE=1 ;;
   s) SKIP_BUILD=1 ;;
   z) ZIP=true ;;
+  w) SKIP_WEBRTC_DEPS=1 ;;
   ?) usage; exit 1 ;;
   esac
 done
 
 SKIP_BUILD=${SKIP_BUILD:-0}
+SKIP_WEBRTC_DEPS=${SKIP_WEBRTC_DEPS:-0}
 OUTDIR=${OUTDIR:-out}
 BRANCH=${BRANCH:-artifacts}
 if [ "$BRANCH" != "artifacts" ]; then
@@ -118,8 +121,10 @@ echo "Checking out WebRTC revision (this will take awhile): $REVISION"
 checkout "$TARGET_OS" $OUTDIR $REVISION
 
 if [ $SKIP_BUILD -eq 0 ]; then
-  echo "Checking WebRTC dependencies"
-  check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU"
+  if [ $SKIP_WEBRTC_DEPS -eq 0 ]; then
+    echo "Checking WebRTC dependencies"
+    check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU"
+  fi
 
   echo "Patching WebRTC source"
   patch $PLATFORM $OUTDIR $ENABLE_RTTI "$TARGET_OS"
