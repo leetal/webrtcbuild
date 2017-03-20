@@ -233,9 +233,7 @@ function compile-win() {
 
   echo "Generating project files with: $gn_args"
   gn gen $outputdir --args="$gn_args"
-  pushd $outputdir >/dev/null
-    ninja -C .
-  popd >/dev/null
+  ninja -C $outputdir
 }
 
 # This function compiles a single library for linux/bsd/osx/ios/android.
@@ -250,9 +248,7 @@ function compile-ninja() {
 
   echo "Generating project files with: $gn_args"
   gn gen $outputdir --args="$gn_args"
-  pushd $outputdir >/dev/null
-    ninja -C . $ninja_args
-  popd >/dev/null
+  ninja -C $outputdir $ninja_args
 }
 
 # This function combines build artifact objects into one library named by
@@ -369,7 +365,7 @@ function compile() {
   # If not you will wind up with strange errors in Debug builds such as:
   # undefined reference to `non-virtual thunk to cricket::VideoCapturer::
   # AddOrUpdateSink(rtc::VideoSinkInterface<cricket::VideoFrame>*, rtc::VideoSinkWants const&)'
-  local common_args="rtc_include_tests=false enable_iterator_debugging=false is_component_build=false"
+  local common_args="enable_iterator_debugging=false is_component_build=false"
   if [ "$build_type" == "Release" ]; then
     local common_args="$common_args is_debug=false"
   fi
@@ -407,7 +403,7 @@ function compile() {
     # Set target specific GN arbuments
     case $target_os in
       ios)
-        target_args="$target_args use_xcode_clang=true ios_enable_code_signing=false ios_deployment_target=\"8.0\""
+        target_args="$target_args rtc_include_tests=false use_xcode_clang=true ios_enable_code_signing=false ios_deployment_target=\"8.0\""
         if [ $enable_bitcode = 1 ]; then
           target_args="$target_args enable_ios_bitcode=true"
         fi
@@ -487,7 +483,7 @@ function package() {
   pushd src/out >/dev/null
   if [ "$target_cpu" == "none" ]; then
     zip_file=$label-$build_type.zip
-    find ${build_type}_* -maxdepth 4 \( -name "*.so" -o -name "*.dll" -o -name "*webrtc_full*" -o -name "*.jar" ! -iname "*test*" ! -path "*/gen/*" ! -path "*/obj/*" \) \
+    find ${build_type}_* -maxdepth 5 \( -name "*.so" -o -name "*.dll" -o -name "*webrtc_full*" -o -name "*.jar" ! -iname "*test*" ! -path "*/gen/*" ! -path "*/obj/*" \) \
       -exec $CP --parents '{}' $outdir/$branch/$build_type/lib ';'
   else
     zip_file=$label-$build_type-$target_cpu.zip
@@ -496,7 +492,7 @@ function package() {
       exit 1
     fi
     pushd ${build_type}_${target_cpu} >/dev/null
-    find . -maxdepth 4 \( -name "*.so "-o -name "*.dll" -o -name "*webrtc_full*" -o -name "*.jar" ! -iname "*test*" ! -path "*/gen/*" ! -path "*/obj/*" \) \
+    find . -maxdepth 5 \( -name "*.so "-o -name "*.dll" -o -name "*webrtc_full*" -o -name "*.jar" ! -iname "*test*" ! -path "*/gen/*" ! -path "*/obj/*" \) \
       -exec $CP --parents '{}' $outdir/$branch/$build_type/lib ';'
     popd >/dev/null
   fi
