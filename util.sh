@@ -238,18 +238,20 @@ function compile-win() {
   popd >/dev/null
 }
 
-# This function compiles a single library for linux.
+# This function compiles a single library for linux/bsd/osx/ios/android.
 #
 # $1 the output directory, 'Debug', or 'Release'
-# $2 additional gn arguments
+# $2 additional ninja arguments
+# $3 additional gn arguments
 function compile-ninja() {
   local outputdir="$1"
-  local gn_args="$2"
+  local ninja_args="$2"
+  local gn_args="$3"
 
   echo "Generating project files with: $gn_args"
   gn gen $outputdir --args="$gn_args"
   pushd $outputdir >/dev/null
-    ninja -C .
+    ninja -C . $ninja_args
   popd >/dev/null
 }
 
@@ -373,6 +375,8 @@ function compile() {
   fi
   local target_args="target_os=\"$target_os\" target_cpu=\"$target_cpu\""
 
+  local ninja_args=""
+
   pushd $outdir/src >/dev/null
   case $platform in
   win)
@@ -403,14 +407,22 @@ function compile() {
     # Set target specific GN arbuments
     case $target_os in
       ios)
-        common_args="$common_args use_xcode_clang=true ios_enable_code_signing=false ios_deployment_target=\"8.0\""
+        target_args="$target_args use_xcode_clang=true ios_enable_code_signing=false ios_deployment_target=\"8.0\""
         if [ $enable_bitcode = 1 ]; then
-          common_args="$common_args enable_ios_bitcode=true"
+          target_args="$target_args enable_ios_bitcode=true"
         fi
+        ninja_args=""
+      ;;
+      android)
+        if [ "$target_cpu" == "arm" ]; then
+          target_args="$target_args arm_version=7"
+        fi
+        target_args="$target_args use_goma=false"
+        ninja_args="webrtc/sdk/android:libwebrtc webrtc/sdk/android:libjingle_peerconnection_so"
       ;;
     esac
 
-    compile-ninja "out/${build_type}_${target_cpu}" "$common_args $target_args"
+    compile-ninja "out/${build_type}_${target_cpu}" "$ninja_args" "$common_args $target_args"
 
     echo Combining WebRTC library `pwd`
     local strip=false
