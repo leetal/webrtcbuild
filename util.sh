@@ -135,13 +135,13 @@ function checkout() {
   local prev_target_os=$(cat $outdir/.webrtcbuilds_target_os 2>/dev/null)
   if [[ -n "$prev_target_os" && "$target_os" != "$prev_target_os" ]]; then
     echo The target OS has changed. Refetching sources for the new target OS
-    rm -rf src .gclient*
+    rm -rf src .gclient* .webrtcbuilds_*
   fi
 
   local prev_revision=$(cat $outdir/.webrtcbuilds_revision 2>/dev/null)
   if [[ -n "$prev_revision" && "$revision" != "$prev_revision" ]]; then
     # Clear if revisions missmatch
-    rm -rf src .gclient*
+    rm -rf src .gclient* .webrtcbuilds_*
   elif [[ -n "$prev_revision" && "$revision" == "$prev_revision" ]]; then
     # Abort if revisions match
     return
@@ -161,16 +161,19 @@ function checkout() {
       ;;
     esac
   fi
-  # Checkout the specific revision after fetch
-  gclient sync --force --revision $revision
-  # Make sure that the comand returned correctly! (symlinking might fail)
-  if [ ! $? -eq 0 ]; then
-    echo y | src/setup_links.py --force
-    gclient sync
-  fi
   # Cache the target OS and revision
   echo $target_os > $outdir/.webrtcbuilds_target_os
   echo $revision > $outdir/.webrtcbuilds_revision
+
+  set +e
+  # Checkout the specific revision after fetch
+  gclient sync --force --revision $revision
+  if [ ! $? -eq 0 ] && [ -f src/setup_links.py ]; then
+    yes | src/setup_links.py --force
+    gclient sync
+  fi
+  set -e
+
   popd >/dev/null
 }
 
@@ -196,11 +199,13 @@ function patch() {
     sed -i.bak 's|"//webrtc/examples",|#"//webrtc/examples",|' BUILD.gn
 
     # Enable RTTI if required by removing the 'no_rtti' compiler flag
+    sed -i.bak 's|#"//build/config/compiler:no_rtti",|"//build/config/compiler:no_rtti",|' build/config/BUILDCONFIG.gn
     if [ $enable_rtti = 1 ]; then
       echo "Enabling RTTI"
       sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' build/config/BUILDCONFIG.gn
       # The icu package is not included in the iOS toolchain
       if [ "$target_os" != "ios" ]; then
+        sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' third_party/icu/BUILD.gn
         sed -i.bak 's|"//build/config/compiler:no_rtti",|#"//build/config/compiler:no_rtti",|' third_party/icu/BUILD.gn
       fi
     fi
@@ -407,7 +412,7 @@ function compile() {
         if [ $enable_bitcode = 1 ]; then
           target_args="$target_args enable_ios_bitcode=true"
         fi
-        ninja_args=""
+        ninja_args="rtc_sdk_objc"
       ;;
       android)
         if [ "$target_cpu" == "arm" ]; then
