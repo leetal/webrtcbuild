@@ -144,7 +144,7 @@ if [ $PACKAGE -ne 0 ]; then
   else
     # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<build_type>
     LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS
-    package $PLATFORM $OUTDIR $LABEL "$BRANCH" $DIR/resource $TARGET_OS $TARGET_CPU "$BUILD_TYPE" $ZIP
+    package $PLATFORM $OUTDIR $LABEL "$REVISION" $DIR/resource $TARGET_OS $TARGET_CPU "$BUILD_TYPE" $ZIP
   fi
 fi
 
