@@ -50,7 +50,7 @@ function check::depot-tools() {
 function ensure-package() {
   local name="$1"
   local binary="${2:-$1}"
-  if ! which $binary > /dev/null ; then
+  if ! which $binary >/dev/null ; then
     sudo apt-get update -qq
     sudo apt-get install -y $name
   fi
@@ -66,7 +66,7 @@ function check::webrtcbuilds::deps() {
   case $platform in
     mac)
       # for GNU version of cp: gcp
-      which gcp || brew install coreutils
+      which gcp >/dev/null || brew install coreutils
       ;;
     linux)
       if ! grep -v \# /etc/apt/sources.list | grep -q multiverse ; then
@@ -134,16 +134,18 @@ function checkout() {
   pushd $outdir >/dev/null
   local prev_target_os=$(cat $outdir/.webrtcbuilds_target_os 2>/dev/null)
   if [[ -n "$prev_target_os" && "$target_os" != "$prev_target_os" ]]; then
-    echo The target OS has changed. Refetching sources for the new target OS
-    rm -rf src .gclient* .webrtcbuilds_*
+    echo "The target OS has changed. Refetching sources for the new target OS"
+    #rm -rf src .gclient* .webrtcbuilds_*
   fi
 
   local prev_revision=$(cat $outdir/.webrtcbuilds_revision 2>/dev/null)
   if [[ -n "$prev_revision" && "$revision" != "$prev_revision" ]]; then
     # Clear if revisions missmatch
-    rm -rf src .gclient* .webrtcbuilds_*
+    echo "The revisions missmatch. Refetching sources..."
+    #rm -rf src .gclient* .webrtcbuilds_*
   elif [[ -n "$prev_revision" && "$revision" == "$prev_revision" ]]; then
     # Abort if revisions match
+    echo "The revisions matches. Aborting checkout..."
     return
   fi
 
@@ -343,7 +345,7 @@ function combine() {
 # This compiles the library.
 # $1: The platform type.
 # $2: The output directory.
-# $3: The specified branch (or 'artifacts' if not specified).
+# $3: The specified branch (or 'commit-revisions' if not specified).
 # $4: The target os.
 # $5: The target cpu.
 # $6: The blacklist.
@@ -440,7 +442,7 @@ function compile() {
 # $1: The platform type.
 # $2: The output directory.
 # $3: Label of the package.
-# $4: The specified branch/branch-number (or 'artifacts' if 'BRANCH' not specified).
+# $4: The specified branch/branch-number (or 'commit-revision' if 'BRANCH' not specified).
 # $5: The project's resource dirctory.
 # $6: The target os.
 # $7: The target cpu.

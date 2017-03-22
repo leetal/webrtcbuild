@@ -56,8 +56,8 @@ done
 SKIP_BUILD=${SKIP_BUILD:-0}
 SKIP_WEBRTC_DEPS=${SKIP_WEBRTC_DEPS:-0}
 OUTDIR=${OUTDIR:-out}
-BRANCH=${BRANCH:-artifacts}
-if [ "$BRANCH" != "artifacts" ]; then
+BRANCH=${BRANCH:-}
+if [ ! -z $BRANCH ]; then
   BRANCH_NUM=${BRANCH##*/}
 fi
 BLACKLIST=${BLACKLIST:-}
