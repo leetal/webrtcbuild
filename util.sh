@@ -197,8 +197,8 @@ function patch() {
     # git cherry-pick --allow-empty --keep-redundant-commits --allow-empty-message 3e9e043229c529f09590b7074ba062e0094e9821
     # popd >/dev/null
 
-    # This removes the examples from being built.
-    sed -i.bak 's|"//webrtc/examples",|#"//webrtc/examples",|' BUILD.gn
+    # This removes the examples from being generated/built.
+    #sed -i.bak 's|"//webrtc/examples",|#"//webrtc/examples",|' BUILD.gn
 
     # Enable RTTI if required by removing the 'no_rtti' compiler flag
     sed -i.bak 's|#"//build/config/compiler:no_rtti",|"//build/config/compiler:no_rtti",|' build/config/BUILDCONFIG.gn
