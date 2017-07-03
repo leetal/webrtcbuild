@@ -20,6 +20,7 @@ OPTIONS:
    -h             Show this message
    -d             Build debug version of WebRTC.
    -p             Package for release.
+   -y             Clean the given REVISION/BRANCH. This will effectively remove EVERYTHING.
    -o OUTDIR      Output directory. Default is 'out'
    -b BRANCH      Latest revision on git branch. Overrides -r. Common branch names are 'branch-heads/nn', where 'nn' is the release number.
    -r REVISION    Git SHA revision. Default is latest revision.
@@ -47,6 +48,7 @@ while getopts :o:b:r:t:c:l:endpszw OPTION; do
   d) BUILD_TYPE=Debug ;;
   p) PACKAGE=1 ;;
   s) SKIP_BUILD=1 ;;
+  y) CLEAN=1 ;;
   z) ZIP=true ;;
   w) SKIP_WEBRTC_DEPS=1 ;;
   ?) usage; exit 1 ;;
@@ -66,6 +68,7 @@ ENABLE_RTTI=${ENABLE_RTTI:-0}
 ENABLE_BITCODE=${ENABLE_BITCODE:-0}
 BUILD_TYPE=${BUILD_TYPE:-Release}
 PACKAGE=${PACKAGE:-0}
+CLEAN=${CLEAN:-0}
 ZIP=${ZIP:-false}
 PROJECT_NAME=webrtcbuild
 REPO_URL="https://chromium.googlesource.com/external/webrtc"
@@ -118,6 +121,12 @@ REVISION_NUMBER=$(revision-number $REPO_URL $REVISION) || \
 echo "Building revision: $REVISION"
 echo "Associated revision number: $REVISION_NUMBER"
 
+if [ $CLEAN -eq 1 ]; then
+echo "Cleaning WebRTC revision: $REVISION"
+clean $OUTDIR
+exit
+fi
+
 echo "Checking out WebRTC revision (this will take awhile): $REVISION"
 checkout "$TARGET_OS" $OUTDIR $REVISION
 
@@ -128,7 +137,7 @@ if [ $SKIP_BUILD -eq 0 ]; then
   fi
 
   echo "Patching WebRTC source"
-  patch $PLATFORM $OUTDIR $ENABLE_RTTI "$TARGET_OS"
+  patch $PLATFORM $OUTDIR $ENABLE_RTTI "$TARGET_OS" $REVISION
 
   echo "Compiling WebRTC of type ${BUILD_TYPE}"
   compile $PLATFORM $OUTDIR "$BRANCH" "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST" "$BUILD_TYPE" $ENABLE_BITCODE

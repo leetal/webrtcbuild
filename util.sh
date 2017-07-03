@@ -122,6 +122,22 @@ function check::webrtc::deps() {
   fi
 }
 
+# Cleans out a specific revision
+# $1: The output directory.
+function clean() {
+  local outdir="$1"
+
+  echo "Are you sure you want to remove ${outdir}? [y/n]"
+  read confirm
+  if [[ "$confirm" =~ "(y|Y)" ]]; then
+    echo "Will clean the WebRTC folder ${outdir}"
+    rn -rf $outdir
+    echo "Done."
+  else
+    echo "Will not clean."
+  fi
+}
+
 # Checks out a specific revision
 # $1: The target OS type.
 # $2: The output directory.
@@ -141,8 +157,9 @@ function checkout() {
   local prev_revision=$(cat $outdir/.webrtcbuilds_revision 2>/dev/null)
   if [[ -n "$prev_revision" && "$revision" != "$prev_revision" ]]; then
     # Clear if revisions missmatch
-    echo "The revisions missmatch. Refetching sources..."
-    rm -rf src .gclient* .webrtcbuilds_*
+    echo "The revisions missmatch. Fetching new sources..."
+    #rm -rf src .gclient* .webrtcbuilds_*
+    git fetch
   elif [[ -n "$prev_revision" && "$revision" == "$prev_revision" ]]; then
     # Abort if revisions match
     echo "The revisions matches. Aborting checkout..."
