@@ -13,13 +13,6 @@ function detect-platform() {
   esac
 }
 
-# This cleans the output directory.
-# $1: The output directory.
-function clean() {
-  local outdir="$1"
-  rm -rf $outdir/* $outdir/.gclient*
-}
-
 # Makes sure depot tools are present.
 # $1: The platform type.
 # $2: The depot tools url.
@@ -157,9 +150,14 @@ function checkout() {
   local prev_revision=$(cat $outdir/.webrtcbuilds_revision 2>/dev/null)
   if [[ -n "$prev_revision" && "$revision" != "$prev_revision" ]]; then
     # Clear if revisions missmatch
-    echo "The revisions missmatch. Fetching new sources..."
-    #rm -rf src .gclient* .webrtcbuilds_*
-    git fetch
+    echo "The revisions missmatch. Need to fetch new sources... Do you want to continue? (y/N)"
+    read continue_var
+    if [[ "$continue_var" != "y" ]]; then
+      echo "Aborting..."
+      exit
+    fi
+    echo "Cleaning previous source folder..."
+    rm -rf src .gclient* .webrtcbuilds_*
   elif [[ -n "$prev_revision" && "$revision" == "$prev_revision" ]]; then
     # Abort if revisions match
     echo "The revisions matches. Aborting checkout..."
@@ -389,7 +387,7 @@ function compile() {
   # If not you will wind up with strange errors in Debug builds such as:
   # undefined reference to `non-virtual thunk to cricket::VideoCapturer::
   # AddOrUpdateSink(rtc::VideoSinkInterface<cricket::VideoFrame>*, rtc::VideoSinkWants const&)'
-  local common_args="enable_iterator_debugging=false is_component_build=false"
+  local common_args="enable_iterator_debugging=false is_component_build=false enable_nacl=false"
   if [ "$build_type" == "Release" ]; then
     local common_args="$common_args is_debug=false"
   fi
@@ -431,7 +429,7 @@ function compile() {
         if [ $enable_bitcode = 1 ]; then
           target_args="$target_args enable_ios_bitcode=true"
         fi
-        ninja_args="rtc_sdk_objc"
+        ninja_args="webrtc/sdk:objc_framework_framework_headers" #rtc_sdk_objc rtc_sdk_framework_objc
       ;;
       android)
         if [ "$target_cpu" == "arm" ]; then
@@ -500,15 +498,15 @@ function package() {
   pushd third_party/libyuv/include >/dev/null
   find . -name '*.h' -exec $CP --parents '{}' $outdir/$branch/$build_type/include ';'
   popd >/dev/null
-
   popd >/dev/null
 
   # find and copy libraries
   pushd src/out >/dev/null
+  # Set zip flags and copy all object files to the outdir
   if [ "$target_cpu" == "none" ]; then
     zip_file=$label-$build_type.zip
-    find ${build_type}_* -maxdepth 5 \( -name "*.so" -o -name "*.dll" -o -name "*webrtc_full*" -o -name "*.jar" ! -iname "*test*" ! -path "*/gen/*" ! -path "*/obj/*" \) \
-      -exec $CP --parents '{}' $outdir/$branch/$build_type/lib ';'
+    find ${build_type}_* -maxdepth 5 \( -name "*.so" -o -name "*.dll" -o -name "*webrtc_full*" -o -name "*.jar" -o -name "WebRTC.framework" ! -iname "*test*" ! -path "*/gen/*" ! -path "*/obj/*" \) \
+      -exec $CP -r --parents '{}' $outdir/$branch/$build_type/lib ';'
   else
     zip_file=$label-$build_type-$target_cpu.zip
     if [ ! -d ${build_type}_${target_cpu} ]; then
